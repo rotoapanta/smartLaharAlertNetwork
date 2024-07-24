@@ -14,26 +14,35 @@
  * */
 
 #include "LoRaWan_APP.h"
+#include <Wire.h>
+#include "HT_SSD1306Wire.h"
+#include "images.h"
+
+SSD1306Wire oledDisplay(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
+
+int demoMode = 0;
+String receivedData = ""; // Declaración global
+uint16_t pluviometerValue = 0; // Variable global para almacenar el valor del pluviómetro
 
 /* OTAA para*/
 /* This information was obtained from The Things Network (TTN) */
-uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x06, 0x94, 0x92 };      // TTN devEUI
-uint8_t appEui[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };      // Not applicable
-uint8_t appKey[] = { 0x74, 0xD6, 0x6E, 0x63, 0x45, 0x82, 0x48, 0x27, 0xFE, 0xC5, 0xB7, 0x70, 0xBA, 0x2B, 0x50, 0x45 };      // Not applicable
+uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x06, 0x94, 0x92 }; // TTN devEUI
+uint8_t appEui[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // Not applicable
+uint8_t appKey[] = { 0x74, 0xD6, 0x6E, 0x63, 0x45, 0x82, 0x48, 0x27, 0xFE, 0xC5, 0xB7, 0x70, 0xBA, 0x2B, 0x50, 0x45 }; // Not applicable
 
 /* ABP para*/
-uint8_t nwkSKey[] = { 0x59, 0x4C, 0x66, 0x73, 0x83, 0xF5, 0x77, 0x89, 0x6F, 0x79, 0x58, 0x9F, 0xC3, 0x25, 0x6B, 0x7B };     // TTN NwkSKey
-uint8_t appSKey[] = { 0xBB, 0xF8, 0xFC, 0x3A, 0x1B, 0x45, 0xDB, 0x7A, 0x5E, 0x4F, 0x0B, 0x65, 0x10, 0xD1, 0x9E, 0x75 };     // TTN appSKey
-uint32_t devAddr =  ( uint32_t )0x260CBD55;     // TTN Device address
+uint8_t nwkSKey[] = { 0x59, 0x4C, 0x66, 0x73, 0x83, 0xF5, 0x77, 0x89, 0x6F, 0x79, 0x58, 0x9F, 0xC3, 0x25, 0x6B, 0x7B }; // TTN NwkSKey
+uint8_t appSKey[] = { 0xBB, 0xF8, 0xFC, 0x3A, 0x1B, 0x45, 0xDB, 0x7A, 0x5E, 0x4F, 0x0B, 0x65, 0x10, 0xD1, 0x9E, 0x75 }; // TTN appSKey
+uint32_t devAddr = (uint32_t)0x260CBD55; // TTN Device address
 
-/*LoraWan channelsmask, default channels 0-7*/ 
-uint16_t userChannelsMask[6]={ 0x00FF,0x0000,0x0000,0x0000,0x0000,0x0000 };
+/*LoraWan channelsmask, default channels 0-7*/
+uint16_t userChannelsMask[6] = {0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000};
 
 /*LoraWan region, select in arduino IDE tools*/
 LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 
 /*LoraWan Class, Class A and Class C are supported*/
-DeviceClass_t  loraWanClass = CLASS_A;
+DeviceClass_t loraWanClass = CLASS_A;
 
 /*the application data transmission duty cycle.  value in [ms].*/
 uint32_t appTxDutyCycle = 15000;
@@ -73,16 +82,21 @@ uint8_t confirmedNbTrials = 4;
 
 /* Function prototypes */
 static void prepareTxFrame(uint8_t port);
-void sendSensorData();
+void sendSensorData(uint16_t pluviometerValue);
 uint16_t randomPluviometer();
 uint16_t randomTemperature();
 uint8_t randomHumidity();
 void printPayload();
+void displaySplashScreen();
+void displayInitializingMessage();
+void displayProjectInfo();
+void displaySystemName();
+void receiveSerialData(); // Nueva función para recibir datos seriales
 
 /* Prepares the payload of the frame */
 static void prepareTxFrame(uint8_t port) {
   if (port == 2) {
-    sendSensorData();
+    sendSensorData(pluviometerValue);
   }
   printPayload();
 }
@@ -103,55 +117,31 @@ uint8_t randomHumidity() {
 }
 
 /* Send sensor data */
-/*
-Estructura del Paquete de Datos
+void sendSensorData(uint16_t pluviometerValue) {
+    appDataSize = 5;
+    appData[0] = (pluviometerValue >> 8) & 0xFF;
+    appData[1] = pluviometerValue & 0xFF;
+    appData[2] = 0;  // Placeholder for temperature value
+    appData[3] = 0;  // Placeholder for temperature value
+    appData[4] = 0;  // Placeholder for humidity value
+    // Print data to serial
+    Serial.print("Rain gauge value: ");
+    Serial.print(pluviometerValue);
+    Serial.println(" [mm]");
 
-    Byte 0: Parte alta del valor del pluviómetro.
-    Byte 1: Parte baja del valor del pluviómetro.
-    Byte 2: Parte alta del valor de la temperatura.
-    Byte 3: Parte baja del valor de la temperatura.
-    Byte 4: Valor de la humedad.
-
-Ejemplo de Trama
-
-Supongamos que los valores simulados son los siguientes:
-
-    Pluviómetro: 12345 (0x3039 en hexadecimal)
-    Temperatura: 6789 (0x1A85 en hexadecimal)
-    Humedad: 65 (0x41 en hexadecimal)
-
-La trama de datos (appData) sería:
-
-    Byte 0: 0x30
-    Byte 1: 0x39
-    Byte 2: 0x1A
-    Byte 3: 0x85
-    Byte 4: 0x41
-
-En el monitor serie, se vería algo así:
-
-Payload: 30 39 1A 85 41
-
-
-*/
-void sendSensorData() {
-  uint16_t pluviometerValue = randomPluviometer();
-  uint16_t temperatureValue = randomTemperature();
-  uint8_t humidityValue = randomHumidity();
-
-  appDataSize = 5;
-  appData[0] = (pluviometerValue >> 8) & 0xFF;  // First byte of the pluviometer value
-  appData[1] = pluviometerValue & 0xFF;         // Second byte of the pluviometer value
-  appData[2] = (temperatureValue >> 8) & 0xFF;  // First byte of the temperature value
-  appData[3] = temperatureValue & 0xFF;         // Second byte of the temperature value
-  appData[4] = humidityValue;                   // Byte of the humidity value
-
-  Serial.print("Sending pluviómetro data: ");
-  Serial.println(pluviometerValue);
-  Serial.print("Sending temperature data: ");
-  Serial.println(temperatureValue);
-  Serial.print("Sending humidity data: ");
-  Serial.println(humidityValue);
+// Display data on OLED
+    oledDisplay.clear();
+    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+    oledDisplay.setFont(ArialMT_Plain_10);
+    oledDisplay.drawString(oledDisplay.width() / 2, 0, "Real-Time Sensor Data");
+    // Draw a horizontal line to separate the title from the data
+    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
+  // Display the sensor data
+    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+    oledDisplay.setFont(ArialMT_Plain_10);
+    oledDisplay.drawString(0, 20, "Rain gauge value: " + String(pluviometerValue) + " [mm]");
+    // Aquí podrías agregar los valores de temperatura y humedad si los tuvieras
+    oledDisplay.display();
 }
 
 /* Print the payload */
@@ -164,12 +154,88 @@ void printPayload() {
   Serial.println();
 }
 
+/* Display splash screen with logo */
+void displaySplashScreen() {
+    oledDisplay.clear();
+    int x = (oledDisplay.width() - Volcano2_Logo_width) / 2;
+    int y = 0;  // Mover a la parte superior de la pantalla
+    oledDisplay.drawXbm(x, y, Volcano2_Logo_width, Volcano2_Logo_height, Volcano2_Logo_bits);
+    oledDisplay.display();
+    delay(3000);  // Show splash screen for 3 seconds
+}
+
+/* Display system initializing message */
+void displayInitializingMessage() {
+    String text = "System Initializing...";
+
+    oledDisplay.clear();
+    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);  // Alineación del texto a la izquierda
+    oledDisplay.setFont(ArialMT_Plain_10);  // Cambiar el tamaño de la fuente a 10
+
+    int logoX = (oledDisplay.width() - Volcano2_Logo_width) / 2;
+    int logoY = 0;  // Comenzar a dibujar el logotipo desde la parte superior
+    int textY = Volcano2_Logo_height + 5;  // 5 píxeles debajo del logotipo
+
+    // Calcular el ancho del texto para centrarlo
+    int textWidth = oledDisplay.getStringWidth(text);
+    int textX = (oledDisplay.width() - textWidth) / 2;  // Centrar el texto horizontalmente
+
+    // Dibujar el logotipo
+    oledDisplay.drawXbm(logoX, logoY, Volcano2_Logo_width, Volcano2_Logo_height, Volcano2_Logo_bits);
+    oledDisplay.display();
+
+    // Mostrar "System Initializing..." letra por letra en una sola línea
+    for (int i = 1; i <= text.length(); i++) {
+        oledDisplay.setColor(BLACK);
+        oledDisplay.fillRect(0, textY, oledDisplay.width(), 10);  // Limpiar el área donde se dibujará el texto
+        oledDisplay.setColor(WHITE);
+        oledDisplay.drawString(textX, textY, text.substring(0, i));
+        oledDisplay.display();
+        delay(200);  // Ajustar el retardo según sea necesario
+    }
+
+    delay(3000);  // Mantener la pantalla visible por 3 segundos
+}
+
+/* Display project information */
+void displayProjectInfo() {
+  oledDisplay.clear();
+  oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+  oledDisplay.setFont(ArialMT_Plain_10);
+  oledDisplay.drawString(oledDisplay.width() / 2, oledDisplay.height() / 2 - 20, "Instituto Geofisico");
+  oledDisplay.drawString(oledDisplay.width() / 2, oledDisplay.height() / 2 - 10, "Proyecto CEDIA I+D+i 62");
+  oledDisplay.drawString(oledDisplay.width() / 2, oledDisplay.height() / 2, "Roberto Toapanta");
+  oledDisplay.drawString(oledDisplay.width() / 2, oledDisplay.height() / 2 + 10, "Carlos Macias");
+  oledDisplay.display();
+  delay(3000);  // Show project info for 3 seconds
+}
+
+/* Display system name */
+void displaySystemName() {
+  oledDisplay.clear();
+  oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+  oledDisplay.setFont(ArialMT_Plain_10);
+  oledDisplay.drawString(oledDisplay.width() / 2, oledDisplay.height() / 2 - 10, "IoT-based Lahar");
+  oledDisplay.drawString(oledDisplay.width() / 2, oledDisplay.height() / 2, "Alert System (ILAS)");
+  oledDisplay.display();
+  delay(3000);  // Show system name for 3 seconds
+}
+
 void setup() {
   Serial.begin(115200);
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
+  // Initialising the UI will init the display too.
+  oledDisplay.init();
+
+  displayInitializingMessage();
+  //displaySplashScreen();
+  displaySystemName();  // Mostrar el nombre del sistema después de la información del proyecto
+  displayProjectInfo();
 }
 
 void loop() {
+  receiveSerialData(); // Llamada a la función para recibir datos seriales
+
   switch(deviceState) {
     case DEVICE_STATE_INIT:
     {
@@ -210,4 +276,14 @@ void loop() {
       break;
     }
   }
+}
+
+/* Nueva función para recibir datos seriales */
+void receiveSerialData() {
+    if (Serial.available()) {
+        receivedData = Serial.readStringUntil('\n');
+        if (receivedData.length() > 0) {
+            pluviometerValue = receivedData.toInt(); // Actualizar la variable global
+        }
+    }
 }
