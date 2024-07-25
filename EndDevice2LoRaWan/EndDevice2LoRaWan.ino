@@ -22,7 +22,7 @@ SSD1306Wire oledDisplay(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_O
 
 int demoMode = 0;
 String receivedData = ""; // Declaración global
-uint16_t pluviometerValue = 0; // Variable global para almacenar el valor del pluviómetro
+float pluviometerValue = 0; // Variable global para almacenar el valor del pluviómetro
 
 /* OTAA para*/
 /* This information was obtained from The Things Network (TTN) */
@@ -82,7 +82,7 @@ uint8_t confirmedNbTrials = 4;
 
 /* Function prototypes */
 static void prepareTxFrame(uint8_t port);
-void sendSensorData(uint16_t pluviometerValue);
+void sendSensorData(float pluviometerValue);
 uint16_t randomPluviometer();
 uint16_t randomTemperature();
 uint8_t randomHumidity();
@@ -91,6 +91,7 @@ void displaySplashScreen();
 void displayInitializingMessage();
 void displayProjectInfo();
 void displaySystemName();
+void displayDevEui(); // Nueva función para mostrar el devEUI
 void receiveSerialData(); // Nueva función para recibir datos seriales
 
 /* Prepares the payload of the frame */
@@ -117,13 +118,15 @@ uint8_t randomHumidity() {
 }
 
 /* Send sensor data */
-void sendSensorData(uint16_t pluviometerValue) {
+void sendSensorData(float pluviometerValue) {
     appDataSize = 5;
-    appData[0] = (pluviometerValue >> 8) & 0xFF;
-    appData[1] = pluviometerValue & 0xFF;
+    uint16_t pluviometerValueInt = static_cast<uint16_t>(pluviometerValue * 100); // Convertir a entero
+    appData[0] = (pluviometerValueInt >> 8) & 0xFF;
+    appData[1] = pluviometerValueInt & 0xFF;
     appData[2] = 0;  // Placeholder for temperature value
     appData[3] = 0;  // Placeholder for temperature value
     appData[4] = 0;  // Placeholder for humidity value
+
     // Print data to serial
     Serial.print("Rain gauge value: ");
     Serial.print(pluviometerValue);
@@ -136,10 +139,10 @@ void sendSensorData(uint16_t pluviometerValue) {
     oledDisplay.drawString(oledDisplay.width() / 2, 0, "Real-Time Sensor Data");
     // Draw a horizontal line to separate the title from the data
     oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
-  // Display the sensor data
+    // Display the sensor data
     oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-    oledDisplay.setFont(ArialMT_Plain_10);
-    oledDisplay.drawString(0, 20, "Rain gauge value: " + String(pluviometerValue) + " [mm]");
+    oledDisplay.setFont(ArialMT_Plain_10);  // Tamaño de letra más grande
+    oledDisplay.drawString(0, 20, "Rain gauge: " + String(pluviometerValue, 1) + " [mm]");
     // Aquí podrías agregar los valores de temperatura y humedad si los tuvieras
     oledDisplay.display();
 }
@@ -221,6 +224,27 @@ void displaySystemName() {
   delay(3000);  // Show system name for 3 seconds
 }
 
+/* Display DevEui */
+void displayDevEui() {
+  oledDisplay.clear();
+  oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+  oledDisplay.setFont(ArialMT_Plain_10);
+  oledDisplay.drawString(oledDisplay.width() / 2, 0, "Device EUI");
+  // Draw a horizontal line to separate the title from the data
+  oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
+  // Convertir devEui a string
+  String devEuiStr = "";
+  for (int i = 0; i < 8; i++) {
+    if (i > 0) devEuiStr += ":";
+    devEuiStr += String(devEui[i], HEX);
+  }
+
+  oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+  oledDisplay.drawString(0, 20, devEuiStr);
+  oledDisplay.display();
+  delay(3000);  // Mostrar el DevEui por 3 segundos
+}
+
 void setup() {
   Serial.begin(115200);
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
@@ -231,6 +255,7 @@ void setup() {
   //displaySplashScreen();
   displaySystemName();  // Mostrar el nombre del sistema después de la información del proyecto
   displayProjectInfo();
+  displayDevEui(); // Mostrar el DevEui
 }
 
 void loop() {
@@ -283,7 +308,7 @@ void receiveSerialData() {
     if (Serial.available()) {
         receivedData = Serial.readStringUntil('\n');
         if (receivedData.length() > 0) {
-            pluviometerValue = receivedData.toInt(); // Actualizar la variable global
+            pluviometerValue = receivedData.toFloat(); // Actualizar la variable global
         }
     }
 }
