@@ -240,33 +240,60 @@ void displaySystemName() {
 
 /* Display LoRaWAN Device Info */
 void displayLoRaWANDeviceInfo() {
-  oledDisplay.clear();
-  oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
-  oledDisplay.setFont(ArialMT_Plain_10);
-  oledDisplay.drawString(oledDisplay.width() / 2, 0, "LoRaWAN Device Info");
-  // Draw a horizontal line to separate the title from the data
-  oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
-  
-  // Convertir devEui a string
-  String devEuiStr = "";
-  for (int i = 0; i < 8; i++) {
-    if (i > 0) devEuiStr += ":";
-    devEuiStr += String(devEui[i], HEX);
-  }
+    // Definir las posiciones iniciales de los textos
+    int initialPosition = 20;
+    int yPosition = initialPosition;
 
-  // Convertir devAddr a string y asegurar que esté en mayúsculas
-  String devAddrStr = "0x" + String(devAddr, HEX);
-  devAddrStr.toUpperCase();
+    // Convertir devEui a string
+    String devEuiStr = "";
+    for (int i = 0; i < 8; i++) {
+        if (i > 0) devEuiStr += ":";
+        devEuiStr += String(devEui[i], HEX);
+    }
 
-  oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-  oledDisplay.drawString(0, 20, "DevEUI:");
-  oledDisplay.drawString(0, 30, devEuiStr);
-  oledDisplay.drawString(0, 45, "DevAddr:");
-  oledDisplay.drawString(0, 55, devAddrStr);
-  oledDisplay.display();
-  delay(4000);  // Mostrar la información por 3 segundos
+    // Convertir devAddr a string y asegurar que esté en mayúsculas
+    String devAddrStr = "0x" + String(devAddr, HEX);
+    devAddrStr.toUpperCase();
+
+    // Mostrar la información inicialmente y esperar 3 segundos
+    oledDisplay.clear();
+    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+    oledDisplay.setFont(ArialMT_Plain_10);
+    oledDisplay.drawString(oledDisplay.width() / 2, 0, "LoRaWAN Device Info");
+    // Dibujar una línea horizontal para separar el título de los datos
+    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
+    
+    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+    oledDisplay.drawString(0, yPosition, "DevEUI:");
+    oledDisplay.drawString(0, yPosition + 10, devEuiStr);
+    oledDisplay.drawString(0, yPosition + 25, "DevAddr:");
+    oledDisplay.drawString(0, yPosition + 35, devAddrStr);
+    oledDisplay.display();
+    
+    delay(3000); // Esperar 3 segundos antes de iniciar el desplazamiento
+
+    // Bucle para desplazar la información hacia arriba
+    for (int offset = 0; offset <= 40; offset++) {
+        oledDisplay.clear();
+        oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+        oledDisplay.setFont(ArialMT_Plain_10);
+        oledDisplay.drawString(oledDisplay.width() / 2, 0 - offset, "LoRaWAN Device Info");
+        // Dibujar una línea horizontal para separar el título de los datos
+        oledDisplay.drawHorizontalLine(0, 15 - offset, oledDisplay.width());
+        
+        oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+        oledDisplay.drawString(0, yPosition - offset, "DevEUI:");
+        oledDisplay.drawString(0, yPosition + 10 - offset, devEuiStr);
+        oledDisplay.drawString(0, yPosition + 25 - offset, "DevAddr:");
+        oledDisplay.drawString(0, yPosition + 35 - offset, devAddrStr);
+        oledDisplay.display();
+
+        // Controlar la velocidad del desplazamiento con un retraso gradual
+        delay(100 + (offset * 5)); // Aumentar gradualmente el retraso
+    }
+
+    delay(3000); // Pausar la información desplazada por 3 segundos antes de borrar la pantalla
 }
-
 
 void setup() {
   Serial.begin(115200);
