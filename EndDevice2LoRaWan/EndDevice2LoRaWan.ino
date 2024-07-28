@@ -94,6 +94,7 @@ void displaySystemName();
 void displayDevEui(); // Nueva función para mostrar el devEUI
 void receiveSerialData(); // Nueva función para recibir datos seriales
 void displayLoRaWANDeviceInfo(); // Mostrar el DevEui y DevAddr
+void displayRainGaugeValue(int pluviometerValue); // Declaración de la función displayRainGaugeValue
 
 /* Prepares the payload of the frame */
 static void prepareTxFrame(uint8_t port) {
@@ -142,23 +143,6 @@ void sendSensorData(int pluviometerValue) {
     Serial.print("Rain gauge value: ");
     Serial.print(pluviometerValue);  // Imprimir valor entero
     Serial.println(" [mm]");
-
-    // Mostrar los datos en la pantalla OLED
-    oledDisplay.clear();
-    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
-    oledDisplay.setFont(ArialMT_Plain_10);
-    oledDisplay.drawString(oledDisplay.width() / 2, 0, "Real-Time Sensor Data");
-    
-    // Dibujar una línea horizontal para separar el título de los datos
-    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
-    
-    // Mostrar el valor del pluviómetro en la pantalla OLED
-    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-    oledDisplay.setFont(ArialMT_Plain_10);  // Tamaño de letra más grande
-    oledDisplay.drawString(0, 20, "Rain gauge: " + String(pluviometerValue) + " [mm]");
-    
-    // Aquí podrías agregar los valores de temperatura y humedad si los tuvieras
-    oledDisplay.display();
 }
 
 /* Print the payload */
@@ -240,45 +224,87 @@ void displaySystemName() {
 
 /* Display LoRaWAN Device Info */
 void displayLoRaWANDeviceInfo() {
-  oledDisplay.clear();
-  oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
-  oledDisplay.setFont(ArialMT_Plain_10);
-  oledDisplay.drawString(oledDisplay.width() / 2, 0, "LoRaWAN Device Info");
-  // Draw a horizontal line to separate the title from the data
-  oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
-  
-  // Convertir devEui a string
-  String devEuiStr = "";
-  for (int i = 0; i < 8; i++) {
-    if (i > 0) devEuiStr += ":";
-    devEuiStr += String(devEui[i], HEX);
-  }
+    // Definir las posiciones iniciales de los textos
+    int initialPosition = 20;
+    int yPosition = initialPosition;
 
-  // Convertir devAddr a string y asegurar que esté en mayúsculas
-  String devAddrStr = "0x" + String(devAddr, HEX);
-  devAddrStr.toUpperCase();
+    // Convertir devEui a string
+    String devEuiStr = "";
+    for (int i = 0; i < 8; i++) {
+        if (i > 0) devEuiStr += ":";
+        devEuiStr += String(devEui[i], HEX);
+    }
 
-  oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-  oledDisplay.drawString(0, 20, "DevEUI:");
-  oledDisplay.drawString(0, 30, devEuiStr);
-  oledDisplay.drawString(0, 45, "DevAddr:");
-  oledDisplay.drawString(0, 55, devAddrStr);
-  oledDisplay.display();
-  delay(4000);  // Mostrar la información por 3 segundos
+    // Convertir devAddr a string y asegurar que esté en mayúsculas
+    String devAddrStr = "0x" + String(devAddr, HEX);
+    devAddrStr.toUpperCase();
+
+    // Mostrar la información inicialmente y esperar 3 segundos
+    oledDisplay.clear();
+    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+    oledDisplay.setFont(ArialMT_Plain_10);
+    oledDisplay.drawString(oledDisplay.width() / 2, 0, "LoRaWAN Device Info");
+    // Dibujar una línea horizontal para separar el título de los datos
+    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
+    
+    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+    oledDisplay.drawString(0, yPosition, "DevEUI:");
+    oledDisplay.drawString(0, yPosition + 10, devEuiStr);
+    oledDisplay.drawString(0, yPosition + 25, "DevAddr:");
+    oledDisplay.drawString(0, yPosition + 35, devAddrStr);
+    oledDisplay.display();
+    
+    delay(3000); // Esperar 3 segundos antes de iniciar el desplazamiento
+
+    // Bucle para desplazar la información hacia arriba
+    for (int offset = 0; offset <= 40; offset++) {
+        oledDisplay.clear();
+        oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+        oledDisplay.setFont(ArialMT_Plain_10);
+        oledDisplay.drawString(oledDisplay.width() / 2, 0 - offset, "LoRaWAN Device Info");
+        // Dibujar una línea horizontal para separar el título de los datos
+        oledDisplay.drawHorizontalLine(0, 15 - offset, oledDisplay.width());
+        
+        oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+        oledDisplay.drawString(0, yPosition - offset, "DevEUI:");
+        oledDisplay.drawString(0, yPosition + 10 - offset, devEuiStr);
+        oledDisplay.drawString(0, yPosition + 25 - offset, "DevAddr:");
+        oledDisplay.drawString(0, yPosition + 35 - offset, devAddrStr);
+        oledDisplay.display();
+
+        // Controlar la velocidad del desplazamiento con un retraso gradual
+        delay(100 + (offset * 5)); // Aumentar gradualmente el retraso
+    }
+
+    delay(3000); // Pausar la información desplazada por 3 segundos antes de borrar la pantalla
 }
 
+/* Función para mostrar el valor del pluviómetro */
+void displayRainGaugeValue(int pluviometerValue) {
+    oledDisplay.clear();
+    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+    oledDisplay.setFont(ArialMT_Plain_10);
+    oledDisplay.drawString(oledDisplay.width() / 2, 0, "Real-Time Sensor Data");
+    // Dibujar una línea horizontal para separar el título de los datos
+    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
+    
+    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+    oledDisplay.setFont(ArialMT_Plain_10);  // Tamaño de letra más grande
+    oledDisplay.drawString(0, 20, "Rain gauge: " + String(pluviometerValue) + " [mm]");
+    oledDisplay.display();
+}
 
 void setup() {
   Serial.begin(115200);
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
-  // Initialising the UI will init the display too.
+  // Inicializar la pantalla OLED
   oledDisplay.init();
 
+  // Mostrar mensajes iniciales al arrancar el sistema
   displayInitializingMessage();
-  //displaySplashScreen();
-  displaySystemName();  // Mostrar el nombre del sistema después de la información del proyecto
+  displaySystemName();
   displayProjectInfo();
-  displayLoRaWANDeviceInfo(); // Mostrar el DevEui y DevAddr
+  displayLoRaWANDeviceInfo();
 }
 
 void loop() {
@@ -301,7 +327,7 @@ void loop() {
     }
     case DEVICE_STATE_SEND:
     {
-      prepareTxFrame(2); // Send sensor data
+      prepareTxFrame(2); // Enviar datos del sensor
       LoRaWAN.send();
       deviceState = DEVICE_STATE_CYCLE;
       break;
@@ -324,6 +350,10 @@ void loop() {
       break;
     }
   }
+
+  // Actualizar únicamente el valor del pluviómetro en el loop principal
+  displayRainGaugeValue(pluviometerValue);
+  delay(10000); // Esperar 10 segundos antes de actualizar el valor nuevamente
 }
 
 /* Nueva función para recibir datos seriales */
@@ -331,7 +361,7 @@ void receiveSerialData() {
     if (Serial.available()) {
         receivedData = Serial.readStringUntil('\n');
         if (receivedData.length() > 0) {
-            pluviometerValue = receivedData.toFloat(); // Actualizar la variable global
+            pluviometerValue = receivedData.toInt(); // Actualizar la variable global
         }
     }
 }
