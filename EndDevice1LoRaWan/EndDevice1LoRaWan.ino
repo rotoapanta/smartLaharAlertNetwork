@@ -18,6 +18,7 @@
 #include "HT_SSD1306Wire.h"
 #include "images.h"
 
+// Definir el objeto de la pantalla OLED (ajusta los parámetros según tu configuración)
 SSD1306Wire oledDisplay(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
 
 int demoMode = 0;
@@ -94,6 +95,7 @@ void displaySystemName();
 void displayDevEui(); // Nueva función para mostrar el devEUI
 void receiveSerialData(); // Nueva función para recibir datos seriales
 void displayLoRaWANDeviceInfo(); // Mostrar el DevEui y DevAddr
+void displayRainGaugeValue(int pluviometerValue); // Declaración de la función displayRainGaugeValue
 
 /* Prepares the payload of the frame */
 static void prepareTxFrame(uint8_t port) {
@@ -142,23 +144,6 @@ void sendSensorData(int pluviometerValue) {
     Serial.print("Rain gauge value: ");
     Serial.print(pluviometerValue);  // Imprimir valor entero
     Serial.println(" [mm]");
-
-    // Mostrar los datos en la pantalla OLED
-    oledDisplay.clear();
-    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
-    oledDisplay.setFont(ArialMT_Plain_10);
-    oledDisplay.drawString(oledDisplay.width() / 2, 0, "Real-Time Sensor Data");
-    
-    // Dibujar una línea horizontal para separar el título de los datos
-    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
-    
-    // Mostrar el valor del pluviómetro en la pantalla OLED
-    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-    oledDisplay.setFont(ArialMT_Plain_10);  // Tamaño de letra más grande
-    oledDisplay.drawString(0, 20, "Rain gauge: " + String(pluviometerValue) + " [mm]");
-    
-    // Aquí podrías agregar los valores de temperatura y humedad si los tuvieras
-    oledDisplay.display();
 }
 
 /* Print the payload */
@@ -295,17 +280,32 @@ void displayLoRaWANDeviceInfo() {
     delay(3000); // Pausar la información desplazada por 3 segundos antes de borrar la pantalla
 }
 
+/* Función para mostrar el valor del pluviómetro */
+void displayRainGaugeValue(int pluviometerValue) {
+    oledDisplay.clear();
+    oledDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+    oledDisplay.setFont(ArialMT_Plain_10);
+    oledDisplay.drawString(oledDisplay.width() / 2, 0, "Real-Time Sensor Data");
+    // Dibujar una línea horizontal para separar el título de los datos
+    oledDisplay.drawHorizontalLine(0, 15, oledDisplay.width());
+    
+    oledDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+    oledDisplay.setFont(ArialMT_Plain_10);  // Tamaño de letra más grande
+    oledDisplay.drawString(0, 20, "Rain gauge: " + String(pluviometerValue) + " [mm]");
+    oledDisplay.display();
+}
+
 void setup() {
   Serial.begin(115200);
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
-  // Initialising the UI will init the display too.
+  // Inicializar la pantalla OLED
   oledDisplay.init();
 
+  // Mostrar mensajes iniciales al arrancar el sistema
   displayInitializingMessage();
-  //displaySplashScreen();
-  displaySystemName();  // Mostrar el nombre del sistema después de la información del proyecto
+  displaySystemName();
   displayProjectInfo();
-  displayLoRaWANDeviceInfo(); // Mostrar el DevEui y DevAddr
+  displayLoRaWANDeviceInfo();
 }
 
 void loop() {
@@ -328,7 +328,7 @@ void loop() {
     }
     case DEVICE_STATE_SEND:
     {
-      prepareTxFrame(2); // Send sensor data
+      prepareTxFrame(2); // Enviar datos del sensor
       LoRaWAN.send();
       deviceState = DEVICE_STATE_CYCLE;
       break;
@@ -351,6 +351,10 @@ void loop() {
       break;
     }
   }
+
+  // Actualizar únicamente el valor del pluviómetro en el loop principal
+  displayRainGaugeValue(pluviometerValue);
+  delay(10000); // Esperar 10 segundos antes de actualizar el valor nuevamente
 }
 
 /* Nueva función para recibir datos seriales */
@@ -358,7 +362,7 @@ void receiveSerialData() {
     if (Serial.available()) {
         receivedData = Serial.readStringUntil('\n');
         if (receivedData.length() > 0) {
-            pluviometerValue = receivedData.toFloat(); // Actualizar la variable global
+            pluviometerValue = receivedData.toInt(); // Actualizar la variable global
         }
     }
 }
