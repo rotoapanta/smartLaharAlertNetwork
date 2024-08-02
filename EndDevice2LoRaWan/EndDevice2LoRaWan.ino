@@ -18,6 +18,7 @@
 #include "HT_SSD1306Wire.h"
 #include "images.h"
 
+// Definir el objeto de la pantalla OLED (ajusta los parámetros según tu configuración)
 SSD1306Wire oledDisplay(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
 
 String receivedData = ""; // Declaración global
@@ -28,18 +29,18 @@ uint8_t num_satellites = 0;
 
 // Tamaño de los datos de la aplicación
 const uint8_t APP_DATA_SIZE = 5;
-//uint8_t sensorData[SENSOR_DATA_SIZE]; // Array global para los datos de la aplicación
+//uint8_t appData[APP_DATA_SIZE]; // Array global para los datos de la aplicación
 
 /* OTAA para*/
 /* This information was obtained from The Things Network (TTN) */
-uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x06, 0x96, 0xE0 };      // TTN devEUI
+uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x06, 0x98, 0x20 };      // TTN devEUI
 uint8_t appEui[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };      // Not applicable
 uint8_t appKey[] = { 0x74, 0xD6, 0x6E, 0x63, 0x45, 0x82, 0x48, 0x27, 0xFE, 0xC5, 0xB7, 0x70, 0xBA, 0x2B, 0x50, 0x45 };      // Not applicable
 
 /* ABP para*/
-uint8_t nwkSKey[] = { 0x60, 0x31, 0xB8, 0x61, 0xB8, 0x26, 0x3C, 0xD7, 0x9B, 0x4F, 0x87, 0x9B, 0x24, 0xF3, 0xDE, 0xE8 };     // TTN NwkSKey
-uint8_t appSKey[] = { 0x9B, 0xFD, 0xEE, 0xCA, 0x4C, 0x7D, 0xD8, 0x2E, 0xED, 0x97, 0x9B, 0x14, 0x10, 0x40, 0x2F, 0xC9 };     // TTN appSKey
-uint32_t devAddr =  ( uint32_t )0x260C987E;     // TTN Device address
+uint8_t nwkSKey[] = { 0xBA, 0x38, 0xD9, 0x01, 0xE6, 0x86, 0x19, 0xDC, 0x3A, 0x90, 0x3E, 0x6E, 0x6B, 0x8C, 0x4C, 0x82 };     // TTN NwkSKey
+uint8_t appSKey[] = { 0x77, 0x15, 0x7D, 0x1F, 0x1D, 0x57, 0x53, 0x7A, 0x26, 0xC7, 0x57, 0xC9, 0xC6, 0x61, 0x03, 0xE8 };     // TTN appSKey
+uint32_t devAddr =  ( uint32_t )0x260C1C05;     // TTN Device address
 
 /*LoraWan channelsmask, default channels 0-7*/
 uint16_t userChannelsMask[6] = {0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000};
@@ -51,7 +52,7 @@ LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
 /*the application data transmission duty cycle.  value in [ms].*/
-uint32_t appTxDutyCycle = 15000;
+uint32_t appTxDutyCycle = 5000;
 
 /*OTAA or ABP*/
 bool overTheAirActivation = false;
@@ -60,7 +61,7 @@ bool overTheAirActivation = false;
 bool loraWanAdr = true;
 
 /* Indicates if the node is sending confirmed or unconfirmed messages */
-bool isTxConfirmed = true;
+bool isTxConfirmed = false;
 
 /* Application port */
 uint8_t appPort = 2;
@@ -86,6 +87,19 @@ uint8_t appPort = 2;
 */
 uint8_t confirmedNbTrials = 4;
 
+unsigned long previousMillis = 0;
+const long interval = 5000; // Intervalo de 5 segundos
+
+unsigned long previousDisplayMillis = 0;
+const long displayInterval = 3000; // Intervalo de 3 segundos para mostrar datos
+
+enum DisplayState {
+  DISPLAY_GPS,
+  DISPLAY_RAIN_GAUGE
+};
+
+DisplayState displayState = DISPLAY_GPS;
+
 /* Function prototypes */
 static void prepareTxFrame(uint8_t port);
 void sendSensorData(float pluviometerValue);
@@ -93,7 +107,7 @@ uint16_t randomPluviometer();
 uint16_t randomTemperature();
 uint8_t randomHumidity();
 void printPayload();
-void displaySplashScreen();
+//void displaySplashScreen();
 void displayInitializingMessage();
 void displayProjectInfo();
 void displaySystemName();
@@ -157,14 +171,14 @@ void printPayload() {
 }
 
 /* Display splash screen with logo */
-void displaySplashScreen() {
+/*void displaySplashScreen() {
   oledDisplay.clear();
   int x = (oledDisplay.width() - Volcano2_Logo_width) / 2;
   int y = 0;  // Mover a la parte superior de la pantalla
   oledDisplay.drawXbm(x, y, Volcano2_Logo_width, Volcano2_Logo_height, Volcano2_Logo_bits);
   oledDisplay.display();
   delay(3000);  // Show splash screen for 3 seconds
-}
+}*/
 
 /* Display system initializing message */
 void displayInitializingMessage() {
@@ -292,7 +306,7 @@ void displayGPSValue(float latitude, float longitude, float altitude, int num_sa
   oledDisplay.drawString(0, 40, "Altitude: " + String(altitude) + " [m]");
   oledDisplay.drawString(0, 50, "Satellites: " + String(num_satellites));
   oledDisplay.display();
-  delay(3000);  // Show GPS data for 3 seconds
+  //delay(3000);  // Show GPS data for 3 seconds
 }
 
 /* Función para mostrar el valor del pluviómetro */
@@ -324,62 +338,74 @@ void setup() {
 }
 
 void loop() {
-  receiveSerialData(); // Llamada a la función para recibir datos seriales
+  receiveSerialData();
 
-  switch(deviceState) {
-    case DEVICE_STATE_INIT:
-    {
-#if(LORAWAN_DEVEUI_AUTO)
-      LoRaWAN.generateDeveuiByChipID();
-#endif
-      LoRaWAN.init(loraWanClass, loraWanRegion);
-      LoRaWAN.setDefaultDR(3);
-      break;
-    }
-    case DEVICE_STATE_JOIN:
-    {
-      LoRaWAN.join();
-      break;
-    }
-    case DEVICE_STATE_SEND:
-    {
-      prepareTxFrame(2); // Enviar datos del sensor
-      LoRaWAN.send();
-      deviceState = DEVICE_STATE_CYCLE;
-      break;
-    }
-    case DEVICE_STATE_CYCLE:
-    {
-      txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
-      LoRaWAN.cycle(txDutyCycleTime);
-      deviceState = DEVICE_STATE_SLEEP;
-      break;
-    }
-    case DEVICE_STATE_SLEEP:
-    {
-      LoRaWAN.sleep(loraWanClass);
-      break;
-    }
-    default:
-    {
-      deviceState = DEVICE_STATE_INIT;
-      break;
+  unsigned long currentMillis = millis();
+
+  // Control de la máquina de estados de LoRaWAN
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    
+    switch(deviceState) {
+      case DEVICE_STATE_INIT:
+      {
+  #if(LORAWAN_DEVEUI_AUTO)
+        LoRaWAN.generateDeveuiByChipID();
+  #endif
+        LoRaWAN.init(loraWanClass, loraWanRegion);
+        LoRaWAN.setDefaultDR(3);
+        break;
+      }
+      case DEVICE_STATE_JOIN:
+      {
+        LoRaWAN.join();
+        break;
+      }
+      case DEVICE_STATE_SEND:
+      {
+        prepareTxFrame(2);
+        LoRaWAN.send();
+        deviceState = DEVICE_STATE_CYCLE;
+        break;
+      }
+      case DEVICE_STATE_CYCLE:
+      {
+        txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
+        LoRaWAN.cycle(txDutyCycleTime);
+        deviceState = DEVICE_STATE_SLEEP;
+        break;
+      }
+      case DEVICE_STATE_SLEEP:
+      {
+        LoRaWAN.sleep(loraWanClass);
+        break;
+      }
+      default:
+      {
+        deviceState = DEVICE_STATE_INIT;
+        break;
+      }
     }
   }
 
-  // Mostrar los datos de GPS y del pluviómetro
-  displayGPSValue(latitude, longitude, altitude, num_satellites);
-  delay(3000);  // Mostrar los datos de GPS por 3 segundos
-  displayRainGaugeValue(pluviometerValue);
-  delay(10000); // Esperar 10 segundos antes de actualizar el valor nuevamente
+  // Control de la visualización en OLED
+  if (currentMillis - previousDisplayMillis >= displayInterval) {
+    previousDisplayMillis = currentMillis;
+    
+    if (displayState == DISPLAY_GPS) {
+      displayGPSValue(latitude, longitude, altitude, num_satellites);
+      displayState = DISPLAY_RAIN_GAUGE;
+    } else if (displayState == DISPLAY_RAIN_GAUGE) {
+      displayRainGaugeValue(pluviometerValue);
+      displayState = DISPLAY_GPS;
+    }
+  }
 }
 
-/* Nueva función para recibir datos seriales */
 void receiveSerialData() {
   if (Serial.available()) {
     receivedData = Serial.readStringUntil('\n');
     if (receivedData.length() > 0) {
-      // Descomponer la cadena recibida en las diferentes partes
       int firstComma = receivedData.indexOf(',');
       local_time = receivedData.substring(0, firstComma);
       
